@@ -1,0 +1,15 @@
+{% extends 'service_manager/base.html' %}
+{% block content %}
+  <div class="card shadow-sm">
+    <img src="{{ service.image.url }}" class="card-img-top" alt="{{ service.title }}">
+    <div class="card-body">
+      <h5 class="card-title">{{ service.title }}</h5>
+      <p class="card-text">{{ service.description }}</p>
+      <a href="{% url 'service_edit' service.id %}" class="btn btn-warning">Edit</a>
+      <form method="POST" action="{% url 'service_delete' service.id %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Delete</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
