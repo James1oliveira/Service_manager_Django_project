@@ -24,17 +24,28 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure--7xpurapsfwybem8ji=$nqu_gs@e5z$=of+@l#s(2^lud-!t@f"
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-# Load environment variables
+# Load environment variables (from the .env file, or from Render's Environment settings)
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+# Render sets RENDER=true on its servers, so we can tell "live" apart from "my computer"
+ON_RENDER = 'RENDER' in os.environ
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = env("SECRET_KEY", default="django-insecure--7xpurapsfwybem8ji=$nqu_gs@e5z$=of+@l#s(2^lud-!t@f")
+
+# Debug mode on your own computer, off on the live site
+DEBUG = not ON_RENDER
+
+# Which web addresses may serve this app (an empty list only allows your own computer)
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# Needed so login, register and other forms work over https on Render
+CSRF_TRUSTED_ORIGINS = ['https://*.onrender.com']
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -56,6 +67,7 @@ LOGIN_REDIRECT_URL = '/services/'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serves CSS/JS on Render
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -131,12 +143,25 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Use Cloudinary via environment variable
-CLOUDINARY_URL = env("CLOUDINARY_URL")
+CLOUDINARY_URL = env("CLOUDINARY_URL", default="")
+# Give Cloudinary its keys directly (it was imported before .env was read, so it never saw them)
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': env("CLOUDINARY_CLOUD_NAME", default=""),
+    'API_KEY': env("CLOUDINARY_API_KEY", default=""),
+    'API_SECRET': env("CLOUDINARY_API_SECRET", default=""),
+}
+cloudinary.config(
+    cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+    api_key=CLOUDINARY_STORAGE['API_KEY'],
+    api_secret=CLOUDINARY_STORAGE['API_SECRET'],
+    secure=True,
+)
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 MEDIA_URL = '/media/'
